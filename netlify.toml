@@ -1,0 +1,27 @@
+[build]
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# IMPORTANT: replace REPLACE-WITH-YOUR-RAILWAY-DOMAIN below (twice) with your backend's
+# public Railway domain, e.g. herbamrit-backend-production.up.railway.app (no https://, no trailing slash)
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://REPLACE-WITH-YOUR-RAILWAY-DOMAIN/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "https://REPLACE-WITH-YOUR-RAILWAY-DOMAIN/sitemap.xml"
+  status = 200
+  force = true
+
+# Lets direct visits / refreshes of /shop/some-tea or /admin work (client-side routes)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
