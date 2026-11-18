@@ -1,11 +1,2 @@
--- CreateTable
-CREATE TABLE "ContactMessage" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "message" TEXT NOT NULL,
-    "isRead" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "ContactMessage_pkey" PRIMARY KEY ("id")
-);
+-- Intentionally empty migration.
+-- ContactMessage is already created by the 0_init migration.
