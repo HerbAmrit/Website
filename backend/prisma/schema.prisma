@@ -1,0 +1,244 @@
+// Full data model for the platform. Written up front so later phases (checkout, admin,
+// loyalty, invoicing) don't require schema surgery — only new routes/controllers.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Catalog ----------
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id              String       @id @default(uuid())
+  slug            String       @unique
+  name            String
+  shortDescription String
+  description     String
+  origin          String?      // e.g. "Darjeeling, West Bengal"
+  images          String[]     // URLs
+  price           Decimal      @db.Decimal(10, 2)
+  compareAtPrice  Decimal?     @db.Decimal(10, 2)
+  stock           Int          @default(0)
+  sku             String       @unique
+  categoryId      String
+  category        Category     @relation(fields: [categoryId], references: [id])
+  amazonUrl       String?      // per-product override of the global Amazon store link
+  brewGuide       BrewGuide?
+  reviews         Review[]
+  orderItems      OrderItem[]
+  wishlistedBy    WishlistItem[]
+  productImages   ProductImage[]
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model BrewGuide {
+  id                String   @id @default(uuid())
+  productId         String   @unique
+  product           Product  @relation(fields: [productId], references: [id])
+  waterTempCelsius  Int
+  brewTimeSeconds   Int
+  teaQuantityGrams  Float
+  infusions         Int
+  servingSuggestion String
+  notes             String?
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+// ---------- Users ----------
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  phone         String?
+  passwordHash  String
+  name          String
+  role          Role          @default(CUSTOMER)
+  loyaltyPoints Int           @default(0)
+  addresses     Address[]
+  orders        Order[]
+  wishlist      WishlistItem[]
+  reviews       Review[]
+  loyaltyLedger LoyaltyLedgerEntry[]
+  createdAt     DateTime      @default(now())
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String
+  user       User    @relation(fields: [userId], references: [id])
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  pincode    String
+  isDefault  Boolean @default(false)
+}
+
+model WishlistItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+// ---------- Orders / Checkout (Phase 2) ----------
+
+model Order {
+  id              String       @id @default(uuid())
+  orderNumber     String       @unique // human-readable, e.g. VG-2026-000123
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  subtotal        Decimal      @db.Decimal(10, 2)
+  shippingCharge  Decimal      @db.Decimal(10, 2) @default(0)
+  gstAmount       Decimal      @db.Decimal(10, 2) @default(0)
+  discountAmount  Decimal      @db.Decimal(10, 2) @default(0)
+  loyaltyPointsUsed Int        @default(0)
+  total           Decimal      @db.Decimal(10, 2)
+  couponId        String?
+  coupon          Coupon?      @relation(fields: [couponId], references: [id])
+  status          OrderStatus  @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  razorpayOrderId String?
+  razorpayPaymentId String?
+  shippingAddress Json
+  invoice         Invoice?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+}
+
+// ---------- Coupons (Phase 2) ----------
+
+model Coupon {
+  id             String       @id @default(uuid())
+  code           String       @unique
+  type           CouponType
+  value          Decimal      @db.Decimal(10, 2) // percentage or fixed amount
+  minOrderValue  Decimal?     @db.Decimal(10, 2)
+  maxUses        Int?
+  timesUsed      Int          @default(0)
+  oneTimePerUser Boolean      @default(false)
+  freeShipping   Boolean      @default(false)
+  expiresAt      DateTime?
+  isActive       Boolean      @default(true)
+  orders         Order[]
+  createdAt      DateTime     @default(now())
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+}
+
+// ---------- GST Invoices (Phase 2) ----------
+
+model Invoice {
+  id            String   @id @default(uuid())
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id])
+  invoiceNumber String   @unique
+  pdfUrl        String?
+  gstNumber     String
+  issuedAt      DateTime @default(now())
+}
+
+// ---------- Loyalty (Phase 4) ----------
+
+model LoyaltyLedgerEntry {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  points    Int               // positive = earned, negative = redeemed
+  reason    String
+  createdAt DateTime          @default(now())
+}
+
+// ---------- Site configuration (admin-editable, Phase 3) ----------
+
+model SiteSetting {
+  key   String @id
+  value String
+  // e.g. key="social_instagram_url", key="amazon_store_url", key="loyalty_points_per_rupee"
+}
+
+// Every website contact-form message is saved here first, so nothing is lost even if
+// the WhatsApp/email notification fails. Shown in the admin dashboard under "Messages".
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Product photos uploaded from the admin dashboard. Stored in the database (not on disk)
+// because the hosting platform wipes its disk on every redeploy. Product.images holds the
+// public URLs ("/api/images/<id>") in display order — the first one is the main photo,
+// and the app allows at most 5 per product.
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  mimeType  String
+  data      Bytes
+  createdAt DateTime @default(now())
+}
