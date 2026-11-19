@@ -5,18 +5,18 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# IMPORTANT: replace REPLACE-WITH-YOUR-RAILWAY-DOMAIN below (twice) with your backend's
-# public Railway domain, e.g. herbamrit-backend-production.up.railway.app (no https://, no trailing slash)
+# Backend API is hosted on Railway. If the Railway domain changes, update it below (twice).
+# Use the bare host (no https://, no trailing slash).
 
 [[redirects]]
   from = "/api/*"
-  to = "https://REPLACE-WITH-YOUR-RAILWAY-DOMAIN/api/:splat"
+  to = "https://website-production-73b04fd5.up.railway.app/api/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/sitemap.xml"
-  to = "https://REPLACE-WITH-YOUR-RAILWAY-DOMAIN/sitemap.xml"
+  to = "https://website-production-73b04fd5.up.railway.app/sitemap.xml"
   status = 200
   force = true
 
